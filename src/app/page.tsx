@@ -15,11 +15,31 @@ export default function HomePage() {
   }
 
   if (isError) {
-    return <Error message={error?.message || 'Failed to fetch consoles'} onRetry={refetch} />;
+    return (
+      <Error 
+        message={error?.message || 'Failed to fetch consoles. Make sure the database is set up.'} 
+        onRetry={refetch} 
+      />
+    );
   }
 
   if (!consoles || consoles.length === 0) {
-    return <Error message="No consoles available" onRetry={refetch} />;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gaming-darker">
+        <div className="text-center p-8 gaming-card max-w-md">
+          <div className="text-4xl mb-4">🎮</div>
+          <p className="text-gaming-cyan-neon text-lg font-semibold mb-4">
+            No consoles available
+          </p>
+          <p className="text-gray-400 text-sm mb-4">
+            The database might not be initialized. Please run the setup API.
+          </p>
+          <button onClick={refetch} className="btn-gaming">
+            Retry
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

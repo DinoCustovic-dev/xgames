@@ -133,12 +133,34 @@ export function useGames(): UseQueryResult<Game[]> {
           localStorage.setItem('mock_games', JSON.stringify(mockGames));
         }
       } else {
-        const response = await fetch('/api/games');
-        if (!response.ok) {
-          throw new Error('Failed to fetch games');
+        try {
+          const response = await fetch('/api/games');
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch games`);
+          }
+          const result = await response.json();
+          
+          if (!result.games) {
+            throw new Error('Invalid response format');
+          }
+          
+          setData(result.games);
+        } catch (apiError) {
+          // Fallback to mock if API fails (for development)
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('API failed, falling back to mock data:', apiError);
+            const stored = localStorage.getItem('mock_games');
+            if (stored) {
+              setData(JSON.parse(stored));
+            } else {
+              setData(mockGames);
+              localStorage.setItem('mock_games', JSON.stringify(mockGames));
+            }
+          } else {
+            throw apiError;
+          }
         }
-        const result = await response.json();
-        setData(result.games);
       }
     } catch (err) {
       setIsError(true);

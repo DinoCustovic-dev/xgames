@@ -44,12 +44,34 @@ export function useConsoles(): UseQueryResult<Console[]> {
           localStorage.setItem('mock_consoles', JSON.stringify(mockConsoles));
         }
       } else {
-        const response = await fetch('/api/consoles');
-        if (!response.ok) {
-          throw new Error('Failed to fetch consoles');
+        try {
+          const response = await fetch('/api/consoles');
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch consoles`);
+          }
+          const result = await response.json();
+          
+          if (!result.consoles) {
+            throw new Error('Invalid response format');
+          }
+          
+          setData(result.consoles);
+        } catch (apiError) {
+          // Fallback to mock if API fails (for development)
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('API failed, falling back to mock data:', apiError);
+            const stored = localStorage.getItem('mock_consoles');
+            if (stored) {
+              setData(JSON.parse(stored));
+            } else {
+              setData(mockConsoles);
+              localStorage.setItem('mock_consoles', JSON.stringify(mockConsoles));
+            }
+          } else {
+            throw apiError;
+          }
         }
-        const result = await response.json();
-        setData(result.consoles);
       }
     } catch (err) {
       setIsError(true);

@@ -15,11 +15,21 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ consoles }, { status: 200 });
+    // If no consoles exist, return empty array instead of error
+    return NextResponse.json({ consoles: consoles || [] }, { status: 200 });
   } catch (error) {
     console.error('Error fetching consoles:', error);
+    
+    // More detailed error message
+    const errorMessage = error instanceof Error 
+      ? error.message 
+      : 'Database connection failed. Please ensure the database is set up.';
+    
     return NextResponse.json(
-      { error: 'Failed to fetch console statuses' },
+      { 
+        error: errorMessage,
+        consoles: [], // Return empty array so UI doesn't break
+      },
       { status: 500 }
     );
   }
