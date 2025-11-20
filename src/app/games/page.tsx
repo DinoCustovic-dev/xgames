@@ -1,52 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
-
-type Game = {
-  id: number;
-  name: string;
-  imageUrl: string | null;
-  consoles: Array<{
-    id: number;
-    number: number;
-    name: string;
-  }>;
-};
+import { useGames } from '@/queries/useGames';
+import Loading from '@/components/Loading';
+import Error from '@/components/Error';
 
 export default function GamesPage() {
-  const [games, setGames] = useState<Game[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: games, isLoading, isError, error, refetch } = useGames();
   const language = useLanguage();
 
-  useEffect(() => {
-    const fetchGames = async () => {
-      try {
-        const response = await fetch('/api/games');
-        if (!response.ok) throw new Error('Failed to fetch');
-        const data = await response.json();
-        setGames(data.games);
-      } catch (error) {
-        console.error('Error fetching games:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  if (isLoading) {
+    return <Loading />;
+  }
 
-    fetchGames();
-  }, []);
+  if (isError) {
+    return <Error message={error?.message || 'Failed to fetch games'} onRetry={refetch} />;
+  }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gaming-darker">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gaming-purple-neon border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gaming-purple-neon text-lg font-semibold">
-            {language === 'bs' ? 'Učitavanje...' : 'Loading...'}
-          </p>
-        </div>
-      </div>
-    );
+  if (!games || games.length === 0) {
+    return <Error message="No games available" onRetry={refetch} />;
   }
 
   return (

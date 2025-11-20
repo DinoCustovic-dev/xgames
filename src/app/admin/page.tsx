@@ -2,99 +2,65 @@
 
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/hooks/useLanguage';
-
-type Console = {
-  id: number;
-  number: number;
-  name: string;
-  status: 'free' | 'occupied';
-  updatedAt: string;
-};
+import { useConsoles } from '@/queries/useConsoles';
+import { useLogin } from '@/mutations/useLogin';
+import { useUpdateConsoleStatus } from '@/mutations/useUpdateConsoleStatus';
+import { useLogout } from '@/mutations/useLogout';
+import Loading from '@/components/Loading';
+import Error from '@/components/Error';
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
-  const [consoles, setConsoles] = useState<Console[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const language = useLanguage();
 
-  const fetchConsoles = async () => {
-    try {
-      const response = await fetch('/api/consoles');
-      if (!response.ok) throw new Error('Failed to fetch');
-      const data = await response.json();
-      setConsoles(data.consoles);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    }
-  };
+  const { data: consoles, isLoading: consolesLoading, isError: consolesError, error: consolesErrorObj, refetch: refetchConsoles } = useConsoles();
+  const loginMutation = useLogin();
+  const updateStatusMutation = useUpdateConsoleStatus();
+  const logoutMutation = useLogout();
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchConsoles();
-      const interval = setInterval(fetchConsoles, 5000);
+    if (isAuthenticated && consoles) {
+      const interval = setInterval(() => refetchConsoles(), 5000);
       return () => clearInterval(interval);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, consoles, refetchConsoles]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-
     try {
-      const response = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Invalid password');
-      }
-
+      await loginMutation.mutateAsync({ password });
       setIsAuthenticated(true);
-      // Keep password in state for status updates
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
-    } finally {
-      setLoading(false);
+      // Error handled by mutation
     }
   };
 
-  const handleStatusToggle = async (consoleId: number, currentStatus: string) => {
+  const handleStatusToggle = async (consoleId: number, currentStatus: 'free' | 'occupied') => {
     const newStatus = currentStatus === 'free' ? 'occupied' : 'free';
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
     try {
-      const response = await fetch(`/api/consoles/${consoleId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, password }),
+      await updateStatusMutation.mutateAsync({
+        consoleId,
+        status: newStatus,
+        password,
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update status');
-      }
-
       setSuccess(
         language === 'bs' 
           ? 'Status uspješno ažuriran!' 
           : 'Status updated successfully!'
       );
-      await fetchConsoles();
       setTimeout(() => setSuccess(null), 3000);
+      refetchConsoles();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Update failed');
-    } finally {
-      setLoading(false);
+      // Error handled by mutation
     }
+  };
+
+  const handleLogout = async () => {
+    await logoutMutation.mutateAsync();
+    setIsAuthenticated(false);
+    setPassword('');
   };
 
   if (!isAuthenticated) {
@@ -118,17 +84,17 @@ export default function AdminPage() {
                 required
               />
             </div>
-            {error && (
+            {loginMutation.isError && (
               <div className="p-3 bg-gaming-red/20 border border-gaming-red-neon/50 rounded-lg text-gaming-red-neon text-sm font-bold">
-                {error}
+                {loginMutation.error?.message || 'Login failed'}
               </div>
             )}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loginMutation.isLoading}
               className="w-full btn-gaming disabled:opacity-50"
             >
-              {loading 
+              {loginMutation.isLoading 
                 ? (language === 'bs' ? 'Učitavanje...' : 'Loading...')
                 : (language === 'bs' ? 'Prijava' : 'Login')
               }
@@ -149,16 +115,20 @@ export default function AdminPage() {
             {language === 'bs' ? '⚡ Admin Panel' : '⚡ Admin Panel'}
           </h1>
           <button
-            onClick={() => setIsAuthenticated(false)}
-            className="px-6 py-3 bg-gaming-red/20 border border-gaming-red-neon/50 text-gaming-red-neon rounded-lg hover:bg-gaming-red/30 transition-all font-bold"
+            onClick={handleLogout}
+            disabled={logoutMutation.isLoading}
+            className="px-6 py-3 bg-gaming-red/20 border border-gaming-red-neon/50 text-gaming-red-neon rounded-lg hover:bg-gaming-red/30 transition-all font-bold disabled:opacity-50"
           >
-            {language === 'bs' ? 'Odjava' : 'Logout'}
+            {logoutMutation.isLoading 
+              ? (language === 'bs' ? 'Odjava...' : 'Logging out...')
+              : (language === 'bs' ? 'Odjava' : 'Logout')
+            }
           </button>
         </div>
 
-        {error && (
+        {(updateStatusMutation.isError || consolesError) && (
           <div className="mb-4 p-4 bg-gaming-red/20 border border-gaming-red-neon/50 text-gaming-red-neon rounded-lg font-bold">
-            {error}
+            {updateStatusMutation.error?.message || consolesErrorObj?.message || 'An error occurred'}
           </div>
         )}
 
@@ -168,8 +138,12 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {consoles.map((console) => (
+        {consolesLoading && <Loading />}
+        {consolesError && <Error message={consolesErrorObj?.message || 'Failed to fetch consoles'} onRetry={refetchConsoles} />}
+        
+        {consoles && consoles.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {consoles.map((console) => (
             <div
               key={console.id}
               className="gaming-card gaming-card-hover p-6"
@@ -196,7 +170,7 @@ export default function AdminPage() {
               </div>
               <button
                 onClick={() => handleStatusToggle(console.id, console.status)}
-                disabled={loading}
+                disabled={updateStatusMutation.isLoading}
                 className={`
                   w-full py-3 px-4 rounded-lg font-bold transition-all duration-300
                   ${
@@ -213,7 +187,8 @@ export default function AdminPage() {
               </button>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

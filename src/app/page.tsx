@@ -1,68 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import ConsoleCard from '@/components/ConsoleCard';
 import { useLanguage } from '@/hooks/useLanguage';
-
-type Console = {
-  id: number;
-  number: number;
-  name: string;
-  status: 'free' | 'occupied';
-  updatedAt: string;
-};
+import { useConsoles } from '@/queries/useConsoles';
+import Loading from '@/components/Loading';
+import Error from '@/components/Error';
 
 export default function HomePage() {
-  const [consoles, setConsoles] = useState<Console[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: consoles, isLoading, isError, error, refetch } = useConsoles();
   const language = useLanguage();
 
-  const fetchConsoles = async () => {
-    try {
-      const response = await fetch('/api/consoles');
-      if (!response.ok) throw new Error('Failed to fetch');
-      const data = await response.json();
-      setConsoles(data.consoles);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchConsoles();
-    // Poll every 5 seconds
-    const interval = setInterval(fetchConsoles, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gaming-darker">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-gaming-purple-neon border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gaming-purple-neon text-lg font-semibold">
-            {language === 'bs' ? 'Učitavanje...' : 'Loading...'}
-          </p>
-        </div>
-      </div>
-    );
+  if (isLoading) {
+    return <Loading />;
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gaming-darker">
-        <div className="text-center p-8 gaming-card max-w-md">
-          <div className="text-6xl mb-4">⚠️</div>
-          <p className="text-gaming-red-neon text-lg font-semibold">
-            {language === 'bs' ? 'Greška: ' : 'Error: '}{error}
-          </p>
-        </div>
-      </div>
-    );
+  if (isError) {
+    return <Error message={error?.message || 'Failed to fetch consoles'} onRetry={refetch} />;
+  }
+
+  if (!consoles || consoles.length === 0) {
+    return <Error message="No consoles available" onRetry={refetch} />;
   }
 
   return (
@@ -102,13 +59,13 @@ export default function HomePage() {
 
         {/* Console grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {consoles.map((console, index) => (
-            <div
-              key={console.id}
+          {consoles.map((consoleItem, index) => (
+            <div 
+              key={consoleItem.id} 
               className="animate-slide-up"
               style={{ animationDelay: `${index * 100}ms` }}
             >
-              <ConsoleCard console={console} language={language} />
+              <ConsoleCard console={consoleItem} language={language} />
             </div>
           ))}
         </div>
