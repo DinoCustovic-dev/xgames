@@ -1,72 +1,131 @@
 'use client';
 
-import Head from 'next/head';
-import * as React from 'react';
-import '@/lib/env';
+import { useState, useEffect } from 'react';
+import ConsoleCard from '@/components/ConsoleCard';
+import { useLanguage } from '@/hooks/useLanguage';
 
-import ArrowLink from '@/components/links/ArrowLink';
-import ButtonLink from '@/components/links/ButtonLink';
-import UnderlineLink from '@/components/links/UnderlineLink';
-import UnstyledLink from '@/components/links/UnstyledLink';
-
-/**
- * SVGR Support
- * Caveat: No React Props Type.
- *
- * You can override the next-env if the type is important to you
- * @see https://stackoverflow.com/questions/68103844/how-to-override-next-js-svg-module-declaration
- */
-import Logo from '~/svg/Logo.svg';
-
-// !STARTERCONF -> Select !STARTERCONF and CMD + SHIFT + F
-// Before you begin editing, follow all comments with `STARTERCONF`,
-// to customize the default configuration.
+type Console = {
+  id: number;
+  number: number;
+  name: string;
+  status: 'free' | 'occupied';
+  updatedAt: string;
+};
 
 export default function HomePage() {
-  return (
-    <main>
-      <Head>
-        <title>Hi</title>
-      </Head>
-      <section className='bg-white'>
-        <div className='layout relative flex min-h-screen flex-col items-center justify-center py-12 text-center'>
-          <Logo className='w-16' />
-          <h1 className='mt-4'>Next.js + Tailwind CSS + TypeScript Starter</h1>
-          <p className='mt-2 text-sm text-gray-800'>
-            A starter for Next.js, Tailwind CSS, and TypeScript with Absolute
-            Import, Seo, Link component, pre-configured with Husky{' '}
+  const [consoles, setConsoles] = useState<Console[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const language = useLanguage();
+
+  const fetchConsoles = async () => {
+    try {
+      const response = await fetch('/api/consoles');
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      setConsoles(data.consoles);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConsoles();
+    // Poll every 5 seconds
+    const interval = setInterval(fetchConsoles, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gaming-darker">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-gaming-purple-neon border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gaming-purple-neon text-lg font-semibold">
+            {language === 'bs' ? 'Učitavanje...' : 'Loading...'}
           </p>
-          <p className='mt-2 text-sm text-gray-700'>
-            <ArrowLink href='https://github.com/theodorusclarence/ts-nextjs-tailwind-starter'>
-              See the repository
-            </ArrowLink>
-          </p>
-
-          <ButtonLink className='mt-6' href='/components' variant='light'>
-            See all components
-          </ButtonLink>
-
-          <UnstyledLink
-            href='https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Ftheodorusclarence%2Fts-nextjs-tailwind-starter'
-            className='mt-4'
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              width='92'
-              height='32'
-              src='https://vercel.com/button'
-              alt='Deploy with Vercel'
-            />
-          </UnstyledLink>
-
-          <footer className='absolute bottom-2 text-gray-700'>
-            © {new Date().getFullYear()} By{' '}
-            <UnderlineLink href='https://theodorusclarence.com?ref=tsnextstarter'>
-              Theodorus Clarence
-            </UnderlineLink>
-          </footer>
         </div>
-      </section>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gaming-darker">
+        <div className="text-center p-8 gaming-card max-w-md">
+          <div className="text-6xl mb-4">⚠️</div>
+          <p className="text-gaming-red-neon text-lg font-semibold">
+            {language === 'bs' ? 'Greška: ' : 'Error: '}{error}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen py-12 px-4 relative overflow-hidden">
+      {/* Animated background particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-gaming-purple/10 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gaming-blue/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gaming-cyan/10 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
+      </div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Hero section */}
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="inline-block mb-4">
+            <h1 className="text-6xl md:text-8xl font-black neon-text text-glow animate-pulse-slow">
+              XGAMES
+            </h1>
+          </div>
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <span className="text-gaming-purple-neon text-xl">⚡</span>
+            <p className="text-xl md:text-2xl text-gray-300 font-semibold">
+              {language === 'bs'
+                ? 'Gaming Centar • PS5 Konzole'
+                : 'Gaming Center • PS5 Consoles'
+              }
+            </p>
+            <span className="text-gaming-cyan-neon text-xl">⚡</span>
+          </div>
+          <p className="text-gaming-blue-neon text-lg font-medium">
+            {language === 'bs'
+              ? 'Status konzola u realnom vremenu'
+              : 'Real-time console status'
+            }
+          </p>
+        </div>
+
+        {/* Console grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {consoles.map((console, index) => (
+            <div
+              key={console.id}
+              className="animate-slide-up"
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <ConsoleCard console={console} language={language} />
+            </div>
+          ))}
+        </div>
+
+        {/* Status update indicator */}
+        <div className="text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gaming-dark/50 border border-gaming-purple/30">
+            <span className="w-2 h-2 bg-gaming-green-neon rounded-full animate-pulse" />
+            <p className="text-sm text-gray-400">
+              {language === 'bs'
+                ? 'Status se automatski ažurira svakih 5 sekundi'
+                : 'Status automatically updates every 5 seconds'
+              }
+            </p>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
